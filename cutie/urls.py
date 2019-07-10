@@ -1,10 +1,10 @@
-
+from django.contrib import admin
 from django.urls import path
-
-from . import views 
+from .views import emailView, successView, index
 
 urlpatterns = [
-        path('', views.index, name='index'),
-       
+        path('', index, name='index'),
+        path('email/', emailView, name='email'),
+        path('success/', successView, name='success'),
 ]
 
