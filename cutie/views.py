@@ -3,7 +3,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from  .forms import ContactForm
 from django.core.mail import send_mail, BadHeaderError
 from backend.settings import DEFAULT_FROM_EMAIL
-from .forms import SignupForm
+#from .forms import SignupForm
 from django.contrib.auth.models import User
 from django.core.mail import EmailMessage
 from .tokens import account_activation_token
@@ -26,11 +26,23 @@ def email(request):
     else:
         form = ContactForm(request.POST)
         if form.is_valid():
+            user = form.save(commit=False)
+            user.is_active = False
+            user.save()
+            current_site = get_current_site(request)
             subject = form.cleaned_data['subject']
             from_email = form.cleaned_data['from_email']
-            message = form.cleaned_data['message']
+            message1 = form.cleaned_data['message']
+            mail_subject = 'Activate your account.'
+            message2 = render_to_string('activate.html', {
+                'user': user,
+                'domain': current_site.domain,
+                'uid':urlsafe_base64_encode(force_bytes(user.pk)),
+                'token':account_activation_token.make_token(user),
+            })
             try:
-                send_mail(subject, message, from_email, [DEFAULT_FROM_EMAIL],)
+                send_mail(subject, message1, from_email, [DEFAULT_FROM_EMAIL],)
+                send_mail(mail_subject ,message2, from_email, [DEFAULT_FROM_EMAIL])
             except BadHeaderError:
                 return HttpResponse('Invalid header found.')
             return redirect('success')
@@ -38,32 +50,6 @@ def email(request):
 
 def success(request):
     return HttpResponse('Success! Thank you for your message.')
-
-def signup(request):
-    if request.method == 'POST':
-        form = SignupForm(request.POST)
-        if form.is_valid():
-            user = form.save(commit=False)
-            user.is_active = False
-            user.save()
-            current_site = get_current_site(request)
-            mail_subject = 'Activate your account.'
-            message = render_to_string('activate.html', {
-                'user': user,
-                'domain': current_site.domain,
-                'uid':urlsafe_base64_encode(force_bytes(user.pk)),
-                'token':account_activation_token.make_token(user),
-            })
-            from_email = form.cleaned_data.get('email')
-            #email = EmailMessage(
-            #            mail_subject, message, to=[to_email]
-            #)
-            #email.send()
-            send_mail(mail_subject,message, from_email, [DEFAULT_FROM_EMAIL])
-            return HttpResponse('Please confirm your email address to complete the registration')
-    else:
-        form = SignupForm()
-    return render(request, 'signup.html', {'form': form})
 
 def activate(request, uidb64, token):
     try:
@@ -79,8 +65,6 @@ def activate(request, uidb64, token):
         #return JsonResponse( {'email': user.email } )
     else:
         return HttpResponse('Activation link is invalid!')
-
-
 
 
 
